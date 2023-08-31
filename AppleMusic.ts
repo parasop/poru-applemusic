@@ -8,6 +8,8 @@ const URL_PATTERN =
 
 interface AppleMusicOptions {
   contryCode?: string;
+  imageWidth:number;
+  imageHeight:number
 }
 
 export type loadType =
@@ -72,14 +74,12 @@ export class AppleMusic {
   public async searchSong(query, requester) {
     try {
       let tracks: any = await this.getData(`/search?types=songs&term=${query}`);
-      console.log(tracks.results.songs.data)
-
-      let track = await this.buildUnresolved(
-        tracks.results.songs.data[0],
-        requester
+     console.log(tracks)
+      const unresolvedTracks = await Promise.all(
+        tracks.results.songs.data.map((x: any) => this.buildUnresolved(x, requester))
       );
 
-      return this.buildResponse("TRACK_LOADED", [track]);
+      return this.buildResponse("TRACK_LOADED",unresolvedTracks);
     } catch (e) {
       console.log(e);
       return this.buildResponse(
@@ -92,20 +92,21 @@ export class AppleMusic {
   }
 
   async buildUnresolved(track: any, requester: any) {
-    if (!track)
-      throw new ReferenceError("The Spotify track object was not provided");
+    if (!track) throw new ReferenceError("The Spotify track object was not provided");
+
+    console.log(track.attributes)
 
     return new Track({
       track: "",
       info: {
-        sourceName: "spotify",
+        sourceName: "applemusic",
         identifier: track.id,
         isSeekable: true,
-        author: track.artists[0]?.name || "Unknown Artist",
+        author: track.attributes?.composerName || "Unknown Artist",
         length: track.duration_ms,
         isStream: false,
-        title: track.name,
-        uri: `https://open.spotify.com/track/${track.id}`,
+        title: track.attributes.albumName,
+        uri: track.attributes.url,
         image: track.album?.images[0]?.url,
         requester,
       },

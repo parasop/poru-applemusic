@@ -2,16 +2,16 @@
   "name": "poru-applemusic",
   "version": "1.0.0",
   "description": "",
-  "main": "index.js",
+  "main": "./dist/index.js",
   "scripts": {
     "build": " tsc && gen-esm-wrapper ./dist/index.js ./dist/index.mjs",
-    "test":"npm run build && node ./test/index.js"
+    "test": "npm run build && node ./test/index.js"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "poru": "github:parasop/poru#v4",
+    "poru": "^4.2.1",
     "undici": "^5.23.0"
   },
   "devDependencies": {

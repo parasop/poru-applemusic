@@ -5,14 +5,18 @@ const poru_1 = require("poru");
 const undici_1 = require("undici");
 const config_1 = require("./config");
 const URL_PATTERN = /(?:https:\/\/music\.apple\.com\/)(?:.+)?(artist|album|music-video|playlist)\/([\w\-\.]+(\/)+[\w\-\.]+|[^&]+)\/([\w\-\.]+(\/)+[\w\-\.]+|[^&]+)/;
-class AppleMusic {
+const APPLE_MUSIC_REGEX = /(?:https:\/\/music\.apple\.com\/)(?:.+)?(artist|album|music-video|playlist)\/([\w\-\.]+(\/)+[\w\-\.]+|[^&]+)\/([\w\-\.]+(\/)+[\w\-\.]+|[^&]+)/;
+class AppleMusic extends poru_1.Plugin {
     baseURL;
     fetchURL;
     countryCode;
     poru;
+    imageWidth;
+    imageHeight;
     _resolve;
     token;
     constructor(options) {
+        super("applemusic");
         if (!options?.contryCode) {
             throw new Error(`[Apple Music Options] countryCode as options must be included for example us`);
         }
@@ -20,6 +24,8 @@ class AppleMusic {
         this.baseURL = "https://api.music.apple.com/v1/";
         this.fetchURL = `https://amp-api.music.apple.com/v1/catalog/${this.countryCode}`;
         this.token = `Bearer ${config_1.PORU_SECRET_TOKEN}`;
+        this.imageWidth = options.imageWidth || 900;
+        this.imageHeight = options.imageHeight || 500;
     }
     check(url) {
         return URL_PATTERN.test(url);
@@ -33,7 +39,6 @@ class AppleMusic {
         return "applemusic";
     }
     async getData(params) {
-        console.log(`${this.fetchURL}${params}`);
         let req = await (0, undici_1.fetch)(`${this.fetchURL}${params}`, {
             headers: {
                 Authorization: this.token,
@@ -44,40 +49,96 @@ class AppleMusic {
         return body;
     }
     async resolve({ query, source, requester }) {
-        if (source.toLowerCase() === "applemusic" && !this.check(query))
+        if (source?.toLowerCase() === "applemusic" && !this.check(query))
             return this.searchSong(query, requester);
+        let [, type, id] = await URL_PATTERN.exec(query);
+        switch (type) {
+            case "album": {
+                this.getAlbum(query, requester);
+                break;
+            }
+            case "playlist": {
+                this.getPlaylist(query, requester);
+                break;
+            }
+            case "artist": {
+                this.getArtist(query, requester);
+                break;
+            }
+        }
+    }
+    async getPlaylist(url, requester) {
+        let query = new URL(url).pathname.split("/");
+        let id = query.pop();
+        try {
+            const playlist = await this.getData(`/playlists/${id}`);
+            const name = playlist.data[0].attributes.name;
+            const tracks = playlist.data[0]?.relationships.tracks.data;
+            const unresolvedTracks = Promise.all(await tracks.map((x) => this.buildUnresolved(x, requester)));
+            return this.buildResponse("PLAYLIST_LOADED", unresolvedTracks, name);
+        }
+        catch (e) {
+            return this.buildResponse("LOAD_FAILED", [], undefined, e.body?.error.message ?? e.message);
+        }
+    }
+    async getArtist(url, requester) {
+        let query = new URL(url).pathname.split("/");
+        let id = query.pop();
+        try {
+            const artist = await this.getData(`/artists/${id}/view/top-songs`);
+            const name = `${artist.data[0].attributes.artistName}'s top songs`;
+            const tracks = await artist.data;
+            const unresolvedTracks = Promise.all(await tracks.map((x) => this.buildUnresolved(x, requester)));
+            return this.buildResponse("PLAYLIST_LOADED", unresolvedTracks, name);
+        }
+        catch (e) {
+            return this.buildResponse("LOAD_FAILED", [], undefined, e.body?.error.message ?? e.message);
+        }
+    }
+    async getAlbum(url, requester) {
+        let query = new URL(url).pathname.split("/");
+        let id = query.pop();
+        try {
+            let album = await this.getData(`/albums/${id}`);
+            const unresolvedTracks = this.buildUnresolved(album.data[0], requester);
+            return this.buildResponse("PLAYLIST_LOADED", unresolvedTracks);
+        }
+        catch (e) {
+            return this.buildResponse("LOAD_FAILED", [], undefined, e.body?.error.message ?? e.message);
+        }
     }
     async searchSong(query, requester) {
         try {
             let tracks = await this.getData(`/search?types=songs&term=${query}`);
-            console.log(tracks);
             const unresolvedTracks = await Promise.all(tracks.results.songs.data.map((x) => this.buildUnresolved(x, requester)));
             return this.buildResponse("TRACK_LOADED", unresolvedTracks);
         }
         catch (e) {
-            console.log(e);
             return this.buildResponse("LOAD_FAILED", [], undefined, e.body?.error.message ?? e.message);
         }
     }
     async buildUnresolved(track, requester) {
         if (!track)
-            throw new ReferenceError("The Spotify track object was not provided");
-        console.log(track.attributes);
+            throw new ReferenceError("The AppleMusic track object was not provided");
+        const artworkURL = new String(track.attributes.artwork.url)
+            .replace("{w}", String(this.imageWidth))
+            .replace("{h}", String(this.imageHeight));
         return new poru_1.Track({
             track: "",
             info: {
                 sourceName: "applemusic",
                 identifier: track.id,
                 isSeekable: true,
-                author: track.attributes?.composerName || "Unknown Artist",
-                length: track.duration_ms,
+                author: track.attributes?.composerName ||
+                    track.attributes?.recordLabel ||
+                    "Unknown Artist",
+                length: track.attributes.durationInMillis || 0,
                 isStream: false,
-                title: track.attributes.albumName,
+                title: track.attributes.name,
                 uri: track.attributes.url,
-                image: track.album?.images[0]?.url,
-                requester,
+                image: artworkURL,
             },
-        });
+        }, requester);
     }
     buildResponse(loadType, tracks, playlistName, exceptionMsg) {
         return Object.assign({

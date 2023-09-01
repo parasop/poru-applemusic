@@ -1,15 +1,15 @@
-import { Poru, ResolveOptions, Track } from "poru";
+import { Poru, ResolveOptions, Track, Plugin } from "poru";
 import { fetch, Request } from "undici";
 import { PORU_SECRET_TOKEN } from "./config";
-import { throws } from "assert";
-import { request } from "https";
 const URL_PATTERN =
+  /(?:https:\/\/music\.apple\.com\/)(?:.+)?(artist|album|music-video|playlist)\/([\w\-\.]+(\/)+[\w\-\.]+|[^&]+)\/([\w\-\.]+(\/)+[\w\-\.]+|[^&]+)/;
+const APPLE_MUSIC_REGEX =
   /(?:https:\/\/music\.apple\.com\/)(?:.+)?(artist|album|music-video|playlist)\/([\w\-\.]+(\/)+[\w\-\.]+|[^&]+)\/([\w\-\.]+(\/)+[\w\-\.]+|[^&]+)/;
 
 interface AppleMusicOptions {
   contryCode?: string;
-  imageWidth:number;
-  imageHeight:number
+  imageWidth: number;
+  imageHeight: number;
 }
 
 export type loadType =
@@ -19,14 +19,17 @@ export type loadType =
   | "NO_MATCHES"
   | "LOAD_FAILED";
 
-export class AppleMusic {
+export class AppleMusic extends Plugin {
   public baseURL: string;
   public fetchURL: string;
   public countryCode: string;
   public poru: Poru;
+  public imageWidth: number;
+  public imageHeight: number;
   private _resolve!: ({ query, source, requester }: ResolveOptions) => any;
   private token: string;
   constructor(options: AppleMusicOptions) {
+    super("applemusic");
     if (!options?.contryCode) {
       throw new Error(
         `[Apple Music Options] countryCode as options must be included for example us`
@@ -36,6 +39,8 @@ export class AppleMusic {
     this.baseURL = "https://api.music.apple.com/v1/";
     this.fetchURL = `https://amp-api.music.apple.com/v1/catalog/${this.countryCode}`;
     this.token = `Bearer ${PORU_SECRET_TOKEN}`;
+    this.imageWidth = options.imageWidth || 900;
+    this.imageHeight = options.imageHeight || 500;
   }
 
   public check(url: string): boolean {
@@ -53,7 +58,6 @@ export class AppleMusic {
   }
 
   public async getData(params: string) {
-    console.log(`${this.fetchURL}${params}`);
     let req = await fetch(`${this.fetchURL}${params}`, {
       headers: {
         Authorization: this.token,
@@ -67,21 +71,100 @@ export class AppleMusic {
   }
 
   public async resolve({ query, source, requester }: ResolveOptions) {
-    if (source.toLowerCase() === "applemusic" && !this.check(query))
+    if (source?.toLowerCase() === "applemusic" && !this.check(query))
       return this.searchSong(query, requester);
+
+    let [, type, id] = await URL_PATTERN.exec(query);
+    switch (type) {
+      case "album": {
+        this.getAlbum(query, requester);
+        break;
+      }
+      case "playlist": {
+        this.getPlaylist(query, requester);
+        break;
+      }
+      case "artist": {
+        this.getArtist(query, requester);
+        break;
+      }
+    }
+  }
+
+  public async getPlaylist(url, requester) {
+    let query = new URL(url).pathname.split("/");
+    let id = query.pop();
+    try {
+      const playlist: any = await this.getData(`/playlists/${id}`);
+      const name = playlist.data[0].attributes.name;
+      const tracks = playlist.data[0]?.relationships.tracks.data;
+      const unresolvedTracks = Promise.all(
+        await tracks.map((x) => this.buildUnresolved(x, requester))
+      );
+
+      return this.buildResponse("PLAYLIST_LOADED", unresolvedTracks, name);
+    } catch (e) {
+      return this.buildResponse(
+        "LOAD_FAILED",
+        [],
+        undefined,
+        e.body?.error.message ?? e.message
+      );
+    }
+  }
+
+  public async getArtist(url, requester) {
+    let query = new URL(url).pathname.split("/");
+    let id = query.pop();
+    try {
+      const artist: any = await this.getData(`/artists/${id}/view/top-songs`);
+      const name = `${artist.data[0].attributes.artistName}'s top songs`;
+      const tracks = await artist.data;
+      const unresolvedTracks = Promise.all(
+        await tracks.map((x) => this.buildUnresolved(x, requester))
+      );
+
+      return this.buildResponse("PLAYLIST_LOADED", unresolvedTracks, name);
+    } catch (e) {
+      return this.buildResponse(
+        "LOAD_FAILED",
+        [],
+        undefined,
+        e.body?.error.message ?? e.message
+      );
+    }
+  }
+
+  public async getAlbum(url, requester) {
+    let query = new URL(url).pathname.split("/");
+    let id = query.pop();
+    try {
+      let album: any = await this.getData(`/albums/${id}`);
+
+      const unresolvedTracks = this.buildUnresolved(album.data[0], requester);
+
+      return this.buildResponse("PLAYLIST_LOADED", unresolvedTracks);
+    } catch (e) {
+      return this.buildResponse(
+        "LOAD_FAILED",
+        [],
+        undefined,
+        e.body?.error.message ?? e.message
+      );
+    }
   }
 
   public async searchSong(query, requester) {
     try {
       let tracks: any = await this.getData(`/search?types=songs&term=${query}`);
-     console.log(tracks)
       const unresolvedTracks = await Promise.all(
-        tracks.results.songs.data.map((x: any) => this.buildUnresolved(x, requester))
+        tracks.results.songs.data.map((x: any) =>
+          this.buildUnresolved(x, requester)
+        )
       );
 
-      return this.buildResponse("TRACK_LOADED",unresolvedTracks);
+      return this.buildResponse("TRACK_LOADED", unresolvedTracks);
     } catch (e) {
-      console.log(e);
       return this.buildResponse(
         "LOAD_FAILED",
         [],
@@ -92,25 +175,33 @@ export class AppleMusic {
   }
 
   async buildUnresolved(track: any, requester: any) {
-    if (!track) throw new ReferenceError("The Spotify track object was not provided");
+    if (!track)
+      throw new ReferenceError("The AppleMusic track object was not provided");
 
-    console.log(track.attributes)
+    const artworkURL = new String(track.attributes.artwork.url)
+      .replace("{w}", String(this.imageWidth))
+      .replace("{h}", String(this.imageHeight));
 
-    return new Track({
-      track: "",
-      info: {
-        sourceName: "applemusic",
-        identifier: track.id,
-        isSeekable: true,
-        author: track.attributes?.composerName || "Unknown Artist",
-        length: track.duration_ms,
-        isStream: false,
-        title: track.attributes.albumName,
-        uri: track.attributes.url,
-        image: track.album?.images[0]?.url,
-        requester,
+    return new Track(
+      {
+        track: "",
+        info: {
+          sourceName: "applemusic",
+          identifier: track.id,
+          isSeekable: true,
+          author:
+            track.attributes?.composerName ||
+            track.attributes?.recordLabel ||
+            "Unknown Artist",
+          length: track.attributes.durationInMillis || 0,
+          isStream: false,
+          title: track.attributes.name,
+          uri: track.attributes.url,
+          image: artworkURL,
+        },
       },
-    });
+      requester
+    );
   }
 
   buildResponse(

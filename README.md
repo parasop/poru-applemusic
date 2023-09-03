@@ -18,7 +18,7 @@ const nodes = [
   },
 ];
 
-const appleMusic = newAppleMusic({
+const appleMusic = new AppleMusic({
 countryCode:"us",
 imageWidth:900,
 imageHeight:600

@@ -54,16 +54,13 @@ class AppleMusic extends poru_1.Plugin {
         let [, type, id] = await URL_PATTERN.exec(query);
         switch (type) {
             case "album": {
-                this.getAlbum(query, requester);
-                break;
+                return this.getAlbum(query, requester);
             }
             case "playlist": {
-                this.getPlaylist(query, requester);
-                break;
+                return this.getPlaylist(query, requester);
             }
             case "artist": {
-                this.getArtist(query, requester);
-                break;
+                return this.getArtist(query, requester);
             }
         }
     }
@@ -100,7 +97,8 @@ class AppleMusic extends poru_1.Plugin {
         let id = query.pop();
         try {
             let album = await this.getData(`/albums/${id}`);
-            const unresolvedTracks = this.buildUnresolved(album.data[0], requester);
+            const tracks = await album.data[0].relationships.tracks.data;
+            const unresolvedTracks = await Promise.all(await tracks.map((x) => this.buildUnresolved(x, requester)));
             return this.buildResponse("PLAYLIST_LOADED", unresolvedTracks);
         }
         catch (e) {

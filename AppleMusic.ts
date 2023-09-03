@@ -77,16 +77,13 @@ export class AppleMusic extends Plugin {
     let [, type, id] = await URL_PATTERN.exec(query);
     switch (type) {
       case "album": {
-        this.getAlbum(query, requester);
-        break;
+        return this.getAlbum(query, requester);
       }
       case "playlist": {
-        this.getPlaylist(query, requester);
-        break;
+        return this.getPlaylist(query, requester);
       }
       case "artist": {
-        this.getArtist(query, requester);
-        break;
+        return this.getArtist(query, requester);
       }
     }
   }
@@ -141,7 +138,10 @@ export class AppleMusic extends Plugin {
     try {
       let album: any = await this.getData(`/albums/${id}`);
 
-      const unresolvedTracks = this.buildUnresolved(album.data[0], requester);
+      const tracks = await album.data[0].relationships.tracks.data;
+      const unresolvedTracks = await Promise.all(
+        await tracks.map((x) => this.buildUnresolved(x, requester))
+      );
 
       return this.buildResponse("PLAYLIST_LOADED", unresolvedTracks);
     } catch (e) {

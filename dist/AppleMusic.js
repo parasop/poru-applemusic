@@ -4,8 +4,7 @@ exports.AppleMusic = void 0;
 const poru_1 = require("poru");
 const undici_1 = require("undici");
 const config_1 = require("./config");
-const URL_PATTERN = /(?:https:\/\/music\.apple\.com\/)(?:.+)?(artist|album|music-video|playlist)\/([\w\-\.]+(\/)+[\w\-\.]+|[^&]+)\/([\w\-\.]+(\/)+[\w\-\.]+|[^&]+)/;
-const APPLE_MUSIC_REGEX = /(?:https:\/\/music\.apple\.com\/)(?:.+)?(artist|album|music-video|playlist)\/([\w\-\.]+(\/)+[\w\-\.]+|[^&]+)\/([\w\-\.]+(\/)+[\w\-\.]+|[^&]+)/;
+const URL_PATTERN = /(?:https:\/\/music\.apple\.com\/)([a-z]{2}\/)?(?:.+)?(artist|album|music-video|playlist)\/([\w\-\.]+(\/)+[\w\-\.]+|[^&]+)\/([\w\-\.]+(\/)+[\w\-\.]+|[^&]+)/;
 class AppleMusic extends poru_1.Plugin {
     baseURL;
     fetchURL;
@@ -51,8 +50,8 @@ class AppleMusic extends poru_1.Plugin {
     async resolve({ query, source, requester }) {
         if (source?.toLowerCase() === "applemusic" && !this.check(query))
             return this.searchSong(query, requester);
-        let [, type, id] = await URL_PATTERN.exec(query);
-        switch (type) {
+        let data = await URL_PATTERN.exec(query);
+        switch (data[2]) {
             case "album": {
                 return this.getAlbum(query, requester);
             }
@@ -71,7 +70,7 @@ class AppleMusic extends poru_1.Plugin {
             const playlist = await this.getData(`/playlists/${id}`);
             const name = playlist.data[0].attributes.name;
             const tracks = playlist.data[0]?.relationships.tracks.data;
-            const unresolvedTracks = Promise.all(await tracks.map((x) => this.buildUnresolved(x, requester)));
+            const unresolvedTracks = await Promise.all(await tracks.map((x) => this.buildUnresolved(x, requester)));
             return this.buildResponse("PLAYLIST_LOADED", unresolvedTracks, name);
         }
         catch (e) {
@@ -85,7 +84,7 @@ class AppleMusic extends poru_1.Plugin {
             const artist = await this.getData(`/artists/${id}/view/top-songs`);
             const name = `${artist.data[0].attributes.artistName}'s top songs`;
             const tracks = await artist.data;
-            const unresolvedTracks = Promise.all(await tracks.map((x) => this.buildUnresolved(x, requester)));
+            const unresolvedTracks = await Promise.all(await tracks.map((x) => this.buildUnresolved(x, requester)));
             return this.buildResponse("PLAYLIST_LOADED", unresolvedTracks, name);
         }
         catch (e) {
@@ -97,9 +96,10 @@ class AppleMusic extends poru_1.Plugin {
         let id = query.pop();
         try {
             let album = await this.getData(`/albums/${id}`);
+            const name = album.data[0].attributes.name;
             const tracks = await album.data[0].relationships.tracks.data;
             const unresolvedTracks = await Promise.all(await tracks.map((x) => this.buildUnresolved(x, requester)));
-            return this.buildResponse("PLAYLIST_LOADED", unresolvedTracks);
+            return this.buildResponse("PLAYLIST_LOADED", unresolvedTracks, name);
         }
         catch (e) {
             return this.buildResponse("LOAD_FAILED", [], undefined, e.body?.error.message ?? e.message);
@@ -109,7 +109,7 @@ class AppleMusic extends poru_1.Plugin {
         try {
             let tracks = await this.getData(`/search?types=songs&term=${query}`);
             const unresolvedTracks = await Promise.all(tracks.results.songs.data.map((x) => this.buildUnresolved(x, requester)));
-            return this.buildResponse("TRACK_LOADED", unresolvedTracks);
+            return this.buildResponse("TRACK_LOADED", [unresolvedTracks]);
         }
         catch (e) {
             return this.buildResponse("LOAD_FAILED", [], undefined, e.body?.error.message ?? e.message);

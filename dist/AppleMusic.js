@@ -50,16 +50,18 @@ class AppleMusic extends poru_1.Plugin {
     async resolve({ query, source, requester }) {
         if (source?.toLowerCase() === "applemusic" && !this.check(query))
             return this.searchSong(query, requester);
-        let data = await URL_PATTERN.exec(query);
-        switch (data[2]) {
-            case "album": {
-                return this.getAlbum(query, requester);
-            }
-            case "playlist": {
-                return this.getPlaylist(query, requester);
-            }
-            case "artist": {
-                return this.getArtist(query, requester);
+        if (this.check(query)) {
+            let data = await URL_PATTERN.exec(query);
+            switch (data[2]) {
+                case "album": {
+                    return this.getAlbum(query, requester);
+                }
+                case "playlist": {
+                    return this.getPlaylist(query, requester);
+                }
+                case "artist": {
+                    return this.getArtist(query, requester);
+                }
             }
         }
     }

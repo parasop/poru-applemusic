@@ -19,22 +19,7 @@ export declare class AppleMusic extends Plugin {
     load(poru: Poru): Promise<void>;
     get SourceName(): string;
     getData(params: string): Promise<unknown>;
-    resolve({ query, source, requester }: ResolveOptions): Promise<{
-        loadType: loadType;
-        tracks: any;
-        playlistInfo: {
-            name: string;
-        } | {
-            name?: undefined;
-        };
-    } & ({
-        exception: {
-            message: string;
-            severity: string;
-        };
-    } | {
-        exception?: undefined;
-    })>;
+    resolve({ query, source, requester }: ResolveOptions): Promise<any>;
     getPlaylist(url: any, requester: any): Promise<{
         loadType: loadType;
         tracks: any;

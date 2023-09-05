@@ -68,8 +68,7 @@ export class AppleMusic extends Plugin {
   }
 
   public async resolve({ query, source, requester }: ResolveOptions) {
-    if (source?.toLowerCase() === "applemusic" && !this.check(query))
-      return this.searchSong(query, requester);
+    if (source === "applemusic" && !this.check(query)) return this.searchSong(query, requester);
 
       if(!this.check(query))return this._resolve({ query, source: this.poru.options.defaultPlatform, requester: requester })
     

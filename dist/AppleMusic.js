@@ -48,7 +48,7 @@ class AppleMusic extends poru_1.Plugin {
         return body;
     }
     async resolve({ query, source, requester }) {
-        if (source?.toLowerCase() === "applemusic" && !this.check(query))
+        if (source === "applemusic" && !this.check(query))
             return this.searchSong(query, requester);
         if (!this.check(query))
             return this._resolve({ query, source: this.poru.options.defaultPlatform, requester: requester });

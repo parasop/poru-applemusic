@@ -71,9 +71,8 @@ export class AppleMusic extends Plugin {
     if (source?.toLowerCase() === "applemusic" && !this.check(query))
       return this.searchSong(query, requester);
 
-    if(this.check(query)){
-    let data = await URL_PATTERN.exec(query);
-    switch (data[2]) {
+    let [,,type] = await URL_PATTERN.exec(query);
+    switch (type) {
       case "album": {
         return this.getAlbum(query, requester);
       }
@@ -84,7 +83,7 @@ export class AppleMusic extends Plugin {
         return this.getArtist(query, requester);
       }
     }
-  }
+  
   }
 
   public async getPlaylist(url, requester) {

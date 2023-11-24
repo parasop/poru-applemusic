@@ -4,7 +4,7 @@ import { PORU_SECRET_TOKEN } from "./config";
 const URL_PATTERN = /(?:https:\/\/music\.apple\.com\/)([a-z]{2}\/)?(?:.+)?(artist|album|music-video|playlist)\/([\w\-\.]+(\/)+[\w\-\.]+|[^&]+)\/([\w\-\.]+(\/)+[\w\-\.]+|[^&]+)/;
 
 interface AppleMusicOptions {
-  contryCode?: string;
+  countryCode?: string;
   imageWidth: number;
   imageHeight: number;
 }
@@ -27,12 +27,12 @@ export class AppleMusic extends Plugin {
   private token: string;
   constructor(options: AppleMusicOptions) {
     super("applemusic");
-    if (!options?.contryCode) {
+    if (!options?.countryCode) {
       throw new Error(
         `[Apple Music Options] countryCode as options must be included for example us`
       );
     }
-    this.countryCode = options?.contryCode;
+    this.countryCode = options?.countryCode;
     this.baseURL = "https://api.music.apple.com/v1/";
     this.fetchURL = `https://amp-api.music.apple.com/v1/catalog/${this.countryCode}`;
     this.token = `Bearer ${PORU_SECRET_TOKEN}`;

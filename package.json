@@ -11,7 +11,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "poru": "^4.2.1",
+    "poru": "^5.0.0",
     "undici": "^5.23.0"
   },
   "devDependencies": {

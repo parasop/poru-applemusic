@@ -7,14 +7,15 @@ interface AppleMusicOptions {
   contryCode?: string;
   imageWidth: number;
   imageHeight: number;
+  TOKEN:string;
 }
 
 export type loadType =
-  | "TRACK_LOADED"
-  | "PLAYLIST_LOADED"
-  | "SEARCH_RESULT"
-  | "NO_MATCHES"
-  | "LOAD_FAILED";
+  | "track"
+  | "playlist"
+  | "search"
+  | "empty"
+  | "error";
 
 export class AppleMusic extends Plugin {
   public baseURL: string;
@@ -32,10 +33,16 @@ export class AppleMusic extends Plugin {
         `[Apple Music Options] countryCode as options must be included for example us`
       );
     }
+    if (!options?.TOKEN) {
+      throw new Error(
+        `[Apple Music Options] TOKEN as options must be included for example us`
+      );
+    }
+ 
     this.countryCode = options?.contryCode;
     this.baseURL = "https://api.music.apple.com/v1/";
     this.fetchURL = `https://amp-api.music.apple.com/v1/catalog/${this.countryCode}`;
-    this.token = `Bearer ${PORU_SECRET_TOKEN}`;
+    this.token = `Bearer ${options.TOKEN}`;
     this.imageWidth = options.imageWidth || 900;
     this.imageHeight = options.imageHeight || 500;
   }
@@ -98,10 +105,10 @@ export class AppleMusic extends Plugin {
         await tracks.map((x) => this.buildUnresolved(x, requester))
       );
 
-      return this.buildResponse("PLAYLIST_LOADED", unresolvedTracks, name);
+      return this.buildResponse("playlist", unresolvedTracks, name);
     } catch (e) {
       return this.buildResponse(
-        "LOAD_FAILED",
+        "error",
         [],
         undefined,
         e.body?.error.message ?? e.message
@@ -120,10 +127,10 @@ export class AppleMusic extends Plugin {
         await tracks.map((x) => this.buildUnresolved(x, requester))
       );
 
-      return this.buildResponse("PLAYLIST_LOADED", unresolvedTracks, name);
+      return this.buildResponse("playlist", unresolvedTracks, name);
     } catch (e) {
       return this.buildResponse(
-        "LOAD_FAILED",
+        "error",
         [],
         undefined,
         e.body?.error.message ?? e.message
@@ -144,10 +151,10 @@ export class AppleMusic extends Plugin {
         await tracks.map((x) => this.buildUnresolved(x, requester))
       );
 
-      return this.buildResponse("PLAYLIST_LOADED", unresolvedTracks,name);
+      return this.buildResponse("playlist", unresolvedTracks,name);
     } catch (e) {
       return this.buildResponse(
-        "LOAD_FAILED",
+        "error",
         [],
         undefined,
         e.body?.error.message ?? e.message
@@ -164,10 +171,10 @@ export class AppleMusic extends Plugin {
         )
       );
 
-      return this.buildResponse("TRACK_LOADED",[unresolvedTracks]);
+      return this.buildResponse("track",[unresolvedTracks]);
     } catch (e) {
       return this.buildResponse(
-        "LOAD_FAILED",
+        "error",
         [],
         undefined,
         e.body?.error.message ?? e.message

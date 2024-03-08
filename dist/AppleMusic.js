@@ -3,7 +3,6 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.AppleMusic = void 0;
 const poru_1 = require("poru");
 const undici_1 = require("undici");
-const config_1 = require("./config");
 const URL_PATTERN = /(?:https:\/\/music\.apple\.com\/)([a-z]{2}\/)?(?:.+)?(artist|album|music-video|playlist)\/([\w\-\.]+(\/)+[\w\-\.]+|[^&]+)\/([\w\-\.]+(\/)+[\w\-\.]+|[^&]+)/;
 class AppleMusic extends poru_1.Plugin {
     baseURL;
@@ -19,10 +18,13 @@ class AppleMusic extends poru_1.Plugin {
         if (!options?.contryCode) {
             throw new Error(`[Apple Music Options] countryCode as options must be included for example us`);
         }
+        if (!options?.TOKEN) {
+            throw new Error(`[Apple Music Options] TOKEN as options must be included for example us`);
+        }
         this.countryCode = options?.contryCode;
         this.baseURL = "https://api.music.apple.com/v1/";
         this.fetchURL = `https://amp-api.music.apple.com/v1/catalog/${this.countryCode}`;
-        this.token = `Bearer ${config_1.PORU_SECRET_TOKEN}`;
+        this.token = `Bearer ${options.TOKEN}`;
         this.imageWidth = options.imageWidth || 900;
         this.imageHeight = options.imageHeight || 500;
     }
@@ -73,10 +75,10 @@ class AppleMusic extends poru_1.Plugin {
             const name = playlist.data[0].attributes.name;
             const tracks = playlist.data[0]?.relationships.tracks.data;
             const unresolvedTracks = await Promise.all(await tracks.map((x) => this.buildUnresolved(x, requester)));
-            return this.buildResponse("PLAYLIST_LOADED", unresolvedTracks, name);
+            return this.buildResponse("playlist", unresolvedTracks, name);
         }
         catch (e) {
-            return this.buildResponse("LOAD_FAILED", [], undefined, e.body?.error.message ?? e.message);
+            return this.buildResponse("error", [], undefined, e.body?.error.message ?? e.message);
         }
     }
     async getArtist(url, requester) {
@@ -87,10 +89,10 @@ class AppleMusic extends poru_1.Plugin {
             const name = `${artist.data[0].attributes.artistName}'s top songs`;
             const tracks = await artist.data;
             const unresolvedTracks = await Promise.all(await tracks.map((x) => this.buildUnresolved(x, requester)));
-            return this.buildResponse("PLAYLIST_LOADED", unresolvedTracks, name);
+            return this.buildResponse("playlist", unresolvedTracks, name);
         }
         catch (e) {
-            return this.buildResponse("LOAD_FAILED", [], undefined, e.body?.error.message ?? e.message);
+            return this.buildResponse("error", [], undefined, e.body?.error.message ?? e.message);
         }
     }
     async getAlbum(url, requester) {
@@ -101,20 +103,20 @@ class AppleMusic extends poru_1.Plugin {
             const name = album.data[0].attributes.name;
             const tracks = await album.data[0].relationships.tracks.data;
             const unresolvedTracks = await Promise.all(await tracks.map((x) => this.buildUnresolved(x, requester)));
-            return this.buildResponse("PLAYLIST_LOADED", unresolvedTracks, name);
+            return this.buildResponse("playlist", unresolvedTracks, name);
         }
         catch (e) {
-            return this.buildResponse("LOAD_FAILED", [], undefined, e.body?.error.message ?? e.message);
+            return this.buildResponse("error", [], undefined, e.body?.error.message ?? e.message);
         }
     }
     async searchSong(query, requester) {
         try {
             let tracks = await this.getData(`/search?types=songs&term=${query}`);
             const unresolvedTracks = await Promise.all(tracks.results.songs.data.map((x) => this.buildUnresolved(x, requester)));
-            return this.buildResponse("TRACK_LOADED", [unresolvedTracks]);
+            return this.buildResponse("track", [unresolvedTracks]);
         }
         catch (e) {
-            return this.buildResponse("LOAD_FAILED", [], undefined, e.body?.error.message ?? e.message);
+            return this.buildResponse("error", [], undefined, e.body?.error.message ?? e.message);
         }
     }
     async buildUnresolved(track, requester) {

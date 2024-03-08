@@ -3,8 +3,9 @@ interface AppleMusicOptions {
     contryCode?: string;
     imageWidth: number;
     imageHeight: number;
+    TOKEN: string;
 }
-export type loadType = "TRACK_LOADED" | "PLAYLIST_LOADED" | "SEARCH_RESULT" | "NO_MATCHES" | "LOAD_FAILED";
+export type loadType = "track" | "playlist" | "search" | "empty" | "error";
 export declare class AppleMusic extends Plugin {
     baseURL: string;
     fetchURL: string;

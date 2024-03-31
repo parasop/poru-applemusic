@@ -11,11 +11,11 @@ interface AppleMusicOptions {
 }
 
 export type loadType =
-  | "track"
-  | "playlist"
-  | "search"
-  | "empty"
-  | "error";
+  | "TRACK_LOADED"
+  | "PLAYLIST_LOADED"
+  | "SEARCH_RESULT"
+  | "NO_MATCHES"
+  | "LOAD_FAILED";
 
 export class AppleMusic extends Plugin {
   public baseURL: string;
@@ -105,10 +105,10 @@ export class AppleMusic extends Plugin {
         await tracks.map((x) => this.buildUnresolved(x, requester))
       );
 
-      return this.buildResponse("playlist", unresolvedTracks, name);
+      return this.buildResponse("PLAYLIST_LOADED", unresolvedTracks, name);
     } catch (e) {
       return this.buildResponse(
-        "error",
+        "NO_MATCHES",
         [],
         undefined,
         e.body?.error.message ?? e.message
@@ -127,10 +127,10 @@ export class AppleMusic extends Plugin {
         await tracks.map((x) => this.buildUnresolved(x, requester))
       );
 
-      return this.buildResponse("playlist", unresolvedTracks, name);
+      return this.buildResponse("PLAYLIST_LOADED", unresolvedTracks, name);
     } catch (e) {
       return this.buildResponse(
-        "error",
+        "NO_MATCHES",
         [],
         undefined,
         e.body?.error.message ?? e.message
@@ -151,10 +151,10 @@ export class AppleMusic extends Plugin {
         await tracks.map((x) => this.buildUnresolved(x, requester))
       );
 
-      return this.buildResponse("playlist", unresolvedTracks,name);
+      return this.buildResponse("PLAYLIST_LOADED", unresolvedTracks,name);
     } catch (e) {
       return this.buildResponse(
-        "error",
+        "NO_MATCHES",
         [],
         undefined,
         e.body?.error.message ?? e.message
@@ -171,10 +171,10 @@ export class AppleMusic extends Plugin {
         )
       );
 
-      return this.buildResponse("track",[unresolvedTracks]);
+      return this.buildResponse("TRACK_LOADED",[unresolvedTracks]);
     } catch (e) {
       return this.buildResponse(
-        "error",
+        "NO_MATCHES",
         [],
         undefined,
         e.body?.error.message ?? e.message

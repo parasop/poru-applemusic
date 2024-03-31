@@ -75,10 +75,10 @@ class AppleMusic extends poru_1.Plugin {
             const name = playlist.data[0].attributes.name;
             const tracks = playlist.data[0]?.relationships.tracks.data;
             const unresolvedTracks = await Promise.all(await tracks.map((x) => this.buildUnresolved(x, requester)));
-            return this.buildResponse("playlist", unresolvedTracks, name);
+            return this.buildResponse("PLAYLIST_LOADED", unresolvedTracks, name);
         }
         catch (e) {
-            return this.buildResponse("error", [], undefined, e.body?.error.message ?? e.message);
+            return this.buildResponse("NO_MATCHES", [], undefined, e.body?.error.message ?? e.message);
         }
     }
     async getArtist(url, requester) {
@@ -89,10 +89,10 @@ class AppleMusic extends poru_1.Plugin {
             const name = `${artist.data[0].attributes.artistName}'s top songs`;
             const tracks = await artist.data;
             const unresolvedTracks = await Promise.all(await tracks.map((x) => this.buildUnresolved(x, requester)));
-            return this.buildResponse("playlist", unresolvedTracks, name);
+            return this.buildResponse("PLAYLIST_LOADED", unresolvedTracks, name);
         }
         catch (e) {
-            return this.buildResponse("error", [], undefined, e.body?.error.message ?? e.message);
+            return this.buildResponse("NO_MATCHES", [], undefined, e.body?.error.message ?? e.message);
         }
     }
     async getAlbum(url, requester) {
@@ -103,20 +103,20 @@ class AppleMusic extends poru_1.Plugin {
             const name = album.data[0].attributes.name;
             const tracks = await album.data[0].relationships.tracks.data;
             const unresolvedTracks = await Promise.all(await tracks.map((x) => this.buildUnresolved(x, requester)));
-            return this.buildResponse("playlist", unresolvedTracks, name);
+            return this.buildResponse("PLAYLIST_LOADED", unresolvedTracks, name);
         }
         catch (e) {
-            return this.buildResponse("error", [], undefined, e.body?.error.message ?? e.message);
+            return this.buildResponse("NO_MATCHES", [], undefined, e.body?.error.message ?? e.message);
         }
     }
     async searchSong(query, requester) {
         try {
             let tracks = await this.getData(`/search?types=songs&term=${query}`);
             const unresolvedTracks = await Promise.all(tracks.results.songs.data.map((x) => this.buildUnresolved(x, requester)));
-            return this.buildResponse("track", [unresolvedTracks]);
+            return this.buildResponse("TRACK_LOADED", [unresolvedTracks]);
         }
         catch (e) {
-            return this.buildResponse("error", [], undefined, e.body?.error.message ?? e.message);
+            return this.buildResponse("NO_MATCHES", [], undefined, e.body?.error.message ?? e.message);
         }
     }
     async buildUnresolved(track, requester) {

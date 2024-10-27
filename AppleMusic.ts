@@ -7,7 +7,7 @@ interface AppleMusicOptions {
   contryCode?: string;
   imageWidth: number;
   imageHeight: number;
-  TOKEN:string;
+  TOKEN: string;
 }
 
 export type loadType =
@@ -24,7 +24,7 @@ export class AppleMusic extends Plugin {
   public poru: Poru;
   public imageWidth: number;
   public imageHeight: number;
-  private _resolve!: ({ query, source, requester }: ResolveOptions) => any;
+  private _resolve!: ({ query, source, requester }: ResolveOptions, node?: any) => any;
   private token: string;
   constructor(options: AppleMusicOptions) {
     super("applemusic");
@@ -38,7 +38,7 @@ export class AppleMusic extends Plugin {
         `[Apple Music Options] TOKEN as options must be included for example us`
       );
     }
- 
+
     this.countryCode = options?.contryCode;
     this.baseURL = "https://api.music.apple.com/v1/";
     this.fetchURL = `https://amp-api.music.apple.com/v1/catalog/${this.countryCode}`;
@@ -74,12 +74,12 @@ export class AppleMusic extends Plugin {
     return body;
   }
 
-  public async resolve({ query, source, requester }: ResolveOptions) {
+  public async resolve({ query, source, requester }: ResolveOptions, node: any) {
     if (source === "applemusic" && !this.check(query)) return this.searchSong(query, requester);
 
-      if(!this.check(query))return this._resolve({ query, source: source || this.poru.options.defaultPlatform, requester: requester })
-    
-    let [,,type] = await URL_PATTERN.exec(query);
+    if (!this.check(query)) return this._resolve({ query, source: source || this.poru.options.defaultPlatform, requester: requester }, node)
+
+    let [, , type] = await URL_PATTERN.exec(query);
     switch (type) {
       case "album": {
         return this.getAlbum(query, requester);
@@ -91,7 +91,7 @@ export class AppleMusic extends Plugin {
         return this.getArtist(query, requester);
       }
     }
-  
+
   }
 
   public async getPlaylist(url, requester) {
@@ -144,14 +144,14 @@ export class AppleMusic extends Plugin {
     try {
       let album: any = await this.getData(`/albums/${id}`);
       const name = album.data[0].attributes.name;
-         
+
       const tracks = await album.data[0].relationships.tracks.data;
 
       const unresolvedTracks = await Promise.all(
         await tracks.map((x) => this.buildUnresolved(x, requester))
       );
 
-      return this.buildResponse("playlist", unresolvedTracks,name);
+      return this.buildResponse("playlist", unresolvedTracks, name);
     } catch (e) {
       return this.buildResponse(
         "error",
@@ -171,7 +171,7 @@ export class AppleMusic extends Plugin {
         )
       );
 
-      return this.buildResponse("track",[unresolvedTracks]);
+      return this.buildResponse("track", [unresolvedTracks]);
     } catch (e) {
       return this.buildResponse(
         "error",

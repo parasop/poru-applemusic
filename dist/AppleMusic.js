@@ -49,11 +49,11 @@ class AppleMusic extends poru_1.Plugin {
         let body = await req.json();
         return body;
     }
-    async resolve({ query, source, requester }) {
+    async resolve({ query, source, requester }, node) {
         if (source === "applemusic" && !this.check(query))
             return this.searchSong(query, requester);
         if (!this.check(query))
-            return this._resolve({ query, source: source || this.poru.options.defaultPlatform, requester: requester });
+            return this._resolve({ query, source: source || this.poru.options.defaultPlatform, requester: requester }, node);
         let [, , type] = await URL_PATTERN.exec(query);
         switch (type) {
             case "album": {
